@@ -793,10 +793,14 @@ public class InAppWebViewChromeClient extends WebChromeClient implements PluginR
   @TargetApi(Build.VERSION_CODES.LOLLIPOP)
   @Override
   public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
-    String[] acceptTypes = fileChooserParams.getAcceptTypes();
-    boolean allowMultiple = fileChooserParams.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE;
-    Intent intent = fileChooserParams.createIntent();
-    return startPhotoPickerIntent(filePathCallback, intent, acceptTypes, allowMultiple);
+      String[] acceptTypes = fileChooserParams.getAcceptTypes();
+      if (!needsCameraPermission() && fileChooserParams.isCaptureEnabled()) {
+          return startCameraIntent(filePathCallback);
+      } else {
+          boolean allowMultiple = fileChooserParams.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE;
+          Intent intent = fileChooserParams.createIntent();
+          return startPhotoPickerIntent(filePathCallback, intent, acceptTypes, allowMultiple);
+      }
   }
 
   @Override
@@ -836,7 +840,19 @@ public class InAppWebViewChromeClient extends WebChromeClient implements PluginR
     return true;
   }
 
-  private Uri[] getSelectedFiles(Intent data, int resultCode) {
+    private boolean startCameraIntent(ValueCallback<Uri[]> callback) {
+        InAppWebViewFlutterPlugin.filePathCallback = callback;
+        Intent cameraIntent = getPhotoIntent();
+        Activity activity = inAppBrowserActivity != null ? inAppBrowserActivity : Shared.activity;
+        if (cameraIntent.resolveActivity(activity.getPackageManager()) != null) {
+            activity.startActivityForResult(cameraIntent, PICKER);
+        } else {
+            Log.d(LOG_TAG, "there is no Activity to handle this Intent");
+        }
+        return true;
+    }
+
+    private Uri[] getSelectedFiles(Intent data, int resultCode) {
     if (data == null) {
       return null;
     }
